@@ -284,29 +284,28 @@ the function `check_status`. In contrast to this method you could also just pass
 the `id` to the function that needs to use it, like in case of `f_but` in the
 code above.
 
-There is a simpler way to access the ids as defined in the kv language for example::
+There is a simpler way to access the ids as defined in the kv language for example:
 
-    <MyBumHurts>
-        Button:
-          id: gentle_pats_are_good
-          text: 'press gently'
-          on_release: root.polite_smack()
-        Button:
-          id: enthusiast
-          text: 'make it red'
-          on_release: root.smack_hard()
+.. code-block:: kv
 
-In your python code::
+    <Marvel>
+      Label:
+        id: loki
+        text: 'loki: I AM YOUR GOD!'
+      Button:
+        id: hulk
+        text: "press to smash loki"
+        on_release: root.hulk_smash()
 
-    class MyBumHurts(BoxLayout):
+In your python code:
+
+.. code-block:: python
+
+    class Marvel(BoxLayout):
     
-        def polite_smack(self):
-            self.ids.gentle_pats_are_good.text = 'I like!, be gentle.'
-            self.ids.enthusiast.text = 'Is that all you've got? Make it red!'
-    
-        def smack_hard(self):
-            self.ids.gentle_pats_are_good.text = 'OUCH!, be gentle.'
-            self.ids.enthusiast.text = 'Now that's more like it. Make it red!'
+        def hulk_smash(self):
+            self.ids.hulk.text = "hulk: puny god!"
+            self.ids.loki.text = "loki: >_<!!!"
 
 
 Templates
@@ -434,7 +433,7 @@ nothing will be shown on the screen. This is expected, because the
 ``Controller`` class has no widgets in it, it's just a ``FloatLayout``. We can
 create the UI around the ``Controller`` class in a file named `controller.kv`,
 which will be loaded when we run the ``ControllerApp``. How this is done and
-what files are loaded is described in the :func:`kivy.app.App.load_kv` method.
+what files are loaded is described in the :meth:`kivy.app.App.load_kv` method.
 
 .. literalinclude:: ../../../examples/guide/designwithkv/controller.kv
     :language: kv
