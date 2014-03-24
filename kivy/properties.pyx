@@ -90,14 +90,14 @@ handle the error gracefully within the property. An errorvalue is a substitute
 for the invalid value. An errorhandler is a callable (single argument function
 or lambda) which can return a valid substitute.
 
-errorhandler parameter::
+errorvalue parameter::
 
     # simply returns 0 if the value exceeds the bounds
     bnp = BoundedNumericProperty(0, min=-500, max=500, errorvalue=0)
 
-errorvalue parameter::
+errorhandler parameter::
 
-    # returns a the boundary value when exceeded
+    # returns the boundary value when exceeded
     bnp = BoundedNumericProperty(0, min=-500, max=500,
         errorhandler=lambda x: 500 if x > 500 else -500)
 
@@ -157,6 +157,29 @@ If you created the class yourself, you can use the 'on_<propname>' callback::
     property you are inheriting, you must not forget to call the superclass
     function too.
 
+Binding to properties of properties.
+------------------------------------
+
+When binding to a property of a property, for example binding to a numeric
+property of an object saved in a object property, updating the object property
+to point to a new object will not re-bind the numeric property to the
+new object. For example::
+
+    <MyWidget>:
+        Label:
+            id: first
+            text: 'First label'
+        Label:
+            id: second
+            text: 'Second label'
+        Button:
+            label: first
+            text: self.label.text
+            on_press: self.label = second
+
+When clicking on the button, although the label object property has changed
+to the second widget, the button text will not change because it is bound to
+the text property of the first label directly.
 '''
 
 __all__ = ('Property',
@@ -231,7 +254,7 @@ cdef class Property:
         a.hello = None # working too, because allownone is True.
 
     :Parameters:
-        `default`: 
+        `default`:
             Specifies the default value for the property.
         `\*\*kwargs`:
             If the parameters include `errorhandler`, this should be a callable
@@ -1200,12 +1223,12 @@ cdef class AliasProperty(Property):
 cdef class VariableListProperty(Property):
     '''A ListProperty that allows you to work with a variable amount of
     list items and to expand them to the desired list size.
-    
+
     For example, GridLayout's padding used to just accept one numeric value
     which was applied equally to the left, top, right and bottom of the
     GridLayout. Now padding can be given one, two or four values, which are
     expanded into a length four list [left, top, right, bottom] and stored
-    in the property.    
+    in the property.
 
     :Parameters:
         `default`: a default list of values
@@ -1215,7 +1238,7 @@ cdef class VariableListProperty(Property):
             be expanded to match a list of this length.
         `\*\*kwargs`: a list of keyword arguments
             Not currently used.
-    
+
     Keeping in mind that the `default` list is expanded to a list of length 4,
     here are some examples of how VariabelListProperty's are handled.
 

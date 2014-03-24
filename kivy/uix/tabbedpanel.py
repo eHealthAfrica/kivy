@@ -391,8 +391,8 @@ class TabbedPanel(GridLayout):
     :class:`~kivy.factory.Factory` will be used to resolve the class.
 
     .. versionchanged:: 1.8.0
-
-        Factory will resolve the class if a string is set.
+        The :class:`~kivy.factory.Factory` will resolve the class if a string is
+        set.
     '''
 
     def get_tab_list(self):
@@ -521,7 +521,7 @@ class TabbedPanel(GridLayout):
             super(TabbedPanel, self).add_widget(widget, index)
         elif isinstance(widget, TabbedPanelHeader):
             self_tabs = self._tab_strip
-            self_tabs.add_widget(widget)
+            self_tabs.add_widget(widget, index)
             widget.group = '__tab%r__' % self_tabs.uid
             self.on_tab_width()
         else:

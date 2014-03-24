@@ -123,7 +123,7 @@ class Label(Widget):
     _font_properties = ('text', 'font_size', 'font_name', 'bold', 'italic',
                         'halign', 'valign', 'padding_x', 'padding_y',
                         'text_size', 'shorten', 'mipmap', 'markup',
-                        'line_height', 'max_lines')
+                        'line_height', 'max_lines', 'strip')
 
     def __init__(self, **kwargs):
         self._trigger_texture = Clock.create_trigger(self.texture_update, -1)
@@ -256,7 +256,11 @@ class Label(Widget):
     text_size = ListProperty([None, None])
     '''By default, the label is not constrained to any bounding box.
     You can set the size constraint of the label with this property.
-    The text will autoflow into the constrains.
+    The text will autoflow into the constrains. So although the font size
+    will not be reduced, the text will be arranged to fit into the box as best
+    as possible, with any text still outside the box clipped.
+
+    This sets and clips :attr:`texture_size` to text_size if not None.
 
     .. versionadded:: 1.0.4
 
@@ -344,13 +348,21 @@ class Label(Widget):
 
     :attr:`padding_x` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.
+
+    .. versionchanged:: 1.8.1
+        `padding_x` has been fixed to work as expected.
+        In the past, the text was padded by the negative of its values.
     '''
 
     padding_y = NumericProperty(0)
     '''Vertical padding of the text inside the widget box.
 
-    :attr:`padding_x` is a :class:`~kivy.properties.NumericProperty` and
+    :attr:`padding_y` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.
+
+    .. versionchanged:: 1.8.1
+        `padding_y` has been fixed to work as expected.
+        In the past, the text was padded by the negative of its values.
     '''
 
     padding = ReferenceListProperty(padding_x, padding_y)
@@ -366,7 +378,7 @@ class Label(Widget):
 
     :attr:`halign` is an :class:`~kivy.properties.OptionProperty` and
     defaults to 'left'. Available options are : left, center, right and
-    justified.
+    justify.
 
     .. warning::
 
@@ -376,7 +388,6 @@ class Label(Widget):
         :attr:`text_size`.
 
     .. versionchanged:: 1.6.0
-
         A new option was added to :attr:`halign`, namely `justify`.
     '''
 
@@ -429,7 +440,13 @@ class Label(Widget):
     '''
 
     texture_size = ListProperty([0, 0])
-    '''Texture size of the text.
+    '''Texture size of the text. The size is determined by the font size and
+    text. If :attr:`text_size` is [None, None], the texture will be the size
+    required to fit the text, otherwise it's clipped to fit :attr:`text_size`.
+
+    When :attr:`text_size` is [None, None], one can bind to texture_size
+    and rescale it proportionally to fit the size of the label in order to
+    make the text fit maximally in the label.
 
     .. warning::
 
@@ -542,4 +559,16 @@ class Label(Widget):
 
     :attr:`max_lines` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.
+    '''
+
+    strip = BooleanProperty(True)
+    '''Whether leading and trailing spaces should be stripped from each
+    displayed line. If True, every line will start at the right or left edge,
+    depending on :attr:`halign`. If :attr:`halign` is `justify` it is
+    implicitly True.
+
+    .. versionadded:: 1.8.1
+
+    :attr:`strip` is a :class:`~kivy.properties.BooleanProperty` and
+    defaults to True.
     '''

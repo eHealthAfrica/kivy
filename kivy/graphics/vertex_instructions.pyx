@@ -3,6 +3,50 @@ Vertex Instructions
 ===================
 
 This module includes all the classes for drawing simple vertex objects.
+
+.. note::
+
+    The list attributes of the graphics instruction classes (e.g.
+    :attr:`Triangle.points`, :attr:`Mesh.indices` etc.) are not Kivy
+    properties but Python properties. As a consequence, the graphics will only
+    be updated when the list object itself is changed and not when list values
+    are modified.
+
+    For example in python:
+
+    .. code-block:: python
+
+        class MyWidget(Button):
+
+            triangle = ObjectProperty(None)
+            def __init__(self, **kwargs):
+                super(MyWidget, self).__init__(**kwargs)
+                with self.canvas:
+                    self.triangle = Triangle(points=[0,0, 100,100, 200,0])
+
+    and in kv:
+
+    .. code-block:: kv
+
+        <MyWidget>:
+            text: 'Update'
+            on_press:
+                self.triangle.points[3] = 400
+
+    Although when the button is pressed the triangle coordinates will be
+    changed, the graphics will not be updated because the list itself is not
+    changed. Similarly, no updates will occur if syntax e.g
+    self.triangle.points[0:2] = [10,10] or self.triangle.points.insert(10) etc.
+    is used. To force an update after a change, the list variable itself must be
+    changed, which in this case can be achieved with:
+
+    .. code-block:: kv
+
+        <MyWidget>:
+            text: 'Update'
+            on_press:
+                self.triangle.points[3] = 400
+                self.triangle.points = self.triangle.points
 '''
 
 __all__ = ('Triangle', 'Quad', 'Rectangle', 'BorderImage', 'Ellipse', 'Line',
@@ -38,10 +82,10 @@ cdef class Bezier(VertexInstruction):
         `points`: list
             List of points in the format (x1, y1, x2, y2...)
         `segments`: int, defaults to 180
-            Define how many segments are needed for drawing the ellipse.
+            Define how many segments are needed for drawing the curve.
             The drawing will be smoother if you have many segments.
         `loop`: bool, defaults to False
-            Set the bezier curve to join last point to first.
+            Set the bezier curve to join the last point to the first.
         `dash_length`: int
             Length of a segment (if dashed), defaults to 1.
         `dash_offset`: int
@@ -192,7 +236,7 @@ cdef class Bezier(VertexInstruction):
             self.flag_update()
 
     property dash_length:
-        '''Property for getting/stting the length of the dashes in the curve.
+        '''Property for getting/setting the length of the dashes in the curve.
         '''
         def __get__(self):
             return self._dash_length
@@ -943,6 +987,3 @@ cdef class Ellipse(Rectangle):
         def __set__(self, value):
             self._angle_end = value
             self.flag_update()
-
-    
-

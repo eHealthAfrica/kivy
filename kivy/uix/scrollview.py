@@ -1,5 +1,4 @@
-'''
-Scroll View
+'''Scroll View
 ===========
 
 .. versionadded:: 1.0.4
@@ -11,11 +10,12 @@ clipped at the scrollview's bounding box.
 Scrolling Behavior
 ------------------
 
-The ScrollView accepts only one child and applies a viewport/window to it
-according to the :attr:`scroll_x` and :attr:`scroll_y` properties. Touches are
-analyzed to determine if the user wants to scroll or control the child in some
-other manner - you cannot do both at the same time. To determine if interaction
-is a scrolling gesture, these properties are used:
+The ScrollView accepts only one child and applies a viewport/window to
+it according to the :attr:`ScrollView.scroll_x` and
+:attr:`ScrollView.scroll_y` properties. Touches are analyzed to
+determine if the user wants to scroll or control the child in some
+other manner - you cannot do both at the same time. To determine if
+interaction is a scrolling gesture, these properties are used:
 
     - :attr:`ScrollView.scroll_distance`: the minimum distance to travel,
          defaults to 20 pixels.
@@ -46,10 +46,11 @@ explicitly disable scrolling on an axis by setting
 :attr:`ScrollView.do_scroll_x` or :attr:`ScrollView.do_scroll_y` to False.
 
 
-Managing the Content Size
--------------------------
+Managing the Content Size and Position
+--------------------------------------
 
-ScrollView manages the position of the child content, not the size. You must
+ScrollView manages the position of its children similarly to a
+RelativeLayout (see :mod:`~kivy.uix.relativelayout`) but not the size. You must
 carefully specify the `size_hint` of your content to get the desired
 scroll/pan effect.
 
@@ -71,18 +72,41 @@ size_hint_y property to None::
     root.add_widget(layout)
 
 
-Effects
--------
+Overscroll Effects
+------------------
 
 .. versionadded:: 1.7.0
 
-An effect is a subclass of :class:`~kivy.effects.scroll.ScrollEffect` that will
-compute informations during the dragging, and apply transformation to the
-:class:`ScrollView`. Depending of the effect, more computing can be done for
-calculating over-scroll, bouncing, etc.
+When scrolling would exceed the bounds of the :class:`ScrollView`, it
+uses a :class:`~kivy.effects.scroll.ScrollEffect` to handle the
+overscroll. These effects can perform actions like bouncing back,
+changing opacity, or simply preventing scrolling beyond the normal
+boundaries. Note that complex effects may perform many computations,
+which can be slow on weaker hardware.
+
+You can change what effect is being used by setting
+:attr:`ScrollView.effect_cls` to any effect class. Current options
+include:
+
+    - :class:`~kivy.effects.scroll.ScrollEffect`: Does not allow
+      scrolling beyond the :class:`ScrollView` boundaries.
+    - :class:`~kivy.effects.dampedscroll.DampedScrollEffect`: The
+      current default. Allows the user to scroll beyond the normal
+      boundaries, but has the content spring back once the
+      touch/click is released.
+    - :class:`~kivy.effects.opacityscroll.OpacityScrollEffect`: Similar
+      to the :class:`~kivy.effect.dampedscroll.DampedScrollEffect`, but
+      also reduces opacity during overscroll.
+
+You can also create your own scroll effect by subclassing one of these,
+then pass it as the :attr:`~ScrollView.effect_cls` in the same way.
+
+Alternatively, you can set :attr:`ScrollView.effect_x` and/or
+:attr:`ScrollView.effect_y` to an *instance* of the effect you want to
+use. This will override the default effect set in
+:attr:`ScrollView.effect_cls`.
 
 All the effects are located in the :mod:`kivy.effects`.
-
 
 '''
 
@@ -112,7 +136,6 @@ class ScrollView(StencilView):
     '''ScrollView class. See module documentation for more information.
 
     .. versionchanged:: 1.7.0
-
         `auto_scroll`, `scroll_friction`, `scroll_moves`, `scroll_stoptime' has
         been deprecated, use :attr:`effect_cls` instead.
     '''
@@ -329,7 +352,6 @@ class ScrollView(StencilView):
     defaults to :class:`DampedScrollEffect`.
 
     .. versionchanged:: 1.8.0
-
         If you set a string, the :class:`~kivy.factory.Factory` will be used to
         resolve the class.
 
@@ -501,6 +523,7 @@ class ScrollView(StencilView):
         return x + tx, y + ty
 
     def simulate_touch_down(self, touch):
+        # at this point the touch is in parent coords
         touch.push()
         touch.apply_transform_2d(self.to_local)
         ret = super(ScrollView, self).on_touch_down(touch)
@@ -519,6 +542,8 @@ class ScrollView(StencilView):
         # handle mouse scrolling, only if the viewport size is bigger than the
         # scrollview size, and if the user allowed to do it
         vp = self._viewport
+        if not vp:
+            return True
         scroll_type = self.scroll_type
         ud = touch.ud
         scroll_bar = 'bars' in scroll_type
@@ -587,10 +612,15 @@ class ScrollView(StencilView):
         if (ud.get('in_bar_x', False) or ud.get('in_bar_y', False)):
             return
         if scroll_type == ['bars']:
+            # touch is in parent, but _change_touch_mode expects window coords
+            touch.push()
+            touch.apply_transform_2d(self.to_local)
+            touch.apply_transform_2d(self.to_window)
             self._change_touch_mode()
+            touch.pop()
             return False
         else:
-            Clock.schedule_once(partial(self._change_touch_mode, False),
+            Clock.schedule_once(self._change_touch_mode,
                                 self.scroll_timeout / 1000.)
         return True
 
@@ -598,7 +628,11 @@ class ScrollView(StencilView):
         if self._get_uid('svavoid') in touch.ud:
             return
         if self._touch is not touch:
+            # touch is in parent
+            touch.push()
+            touch.apply_transform_2d(self.to_local)
             super(ScrollView, self).on_touch_move(touch)
+            touch.pop()
             return self._get_uid() in touch.ud
         if touch.grab_current is not self:
             return True
@@ -633,13 +667,23 @@ class ScrollView(StencilView):
             ud['dy'] += abs(touch.dy)
             if ud['dx'] > self.scroll_distance:
                 if not self.do_scroll_x:
+                    # touch is in parent, but _change expects window coords
+                    touch.push()
+                    touch.apply_transform_2d(self.to_local)
+                    touch.apply_transform_2d(self.to_window)
                     self._change_touch_mode()
+                    touch.pop()
                     return
                 mode = 'scroll'
 
             if ud['dy'] > self.scroll_distance:
                 if not self.do_scroll_y:
+                    # touch is in parent, but _change expects window coords
+                    touch.push()
+                    touch.apply_transform_2d(self.to_local)
+                    touch.apply_transform_2d(self.to_window)
                     self._change_touch_mode()
+                    touch.pop()
                     return
                 mode = 'scroll'
             ud['mode'] = mode
@@ -679,13 +723,40 @@ class ScrollView(StencilView):
             Clock.schedule_once(self._update_effect_bounds)
         else:
             if self._touch is not touch and self.uid not in touch.ud:
+                # touch is in parents
+                touch.push()
+                touch.apply_transform_2d(self.to_local)
                 super(ScrollView, self).on_touch_up(touch)
+                touch.pop()
 
         # if we do mouse scrolling, always accept it
         if 'button' in touch.profile and touch.button.startswith('scroll'):
             return True
 
         return self._get_uid() in touch.ud
+
+    def convert_distance_to_scroll(self, dx, dy):
+        '''Convert a distance in pixels to a scroll distance, depending on the
+        content size and the scrollview size.
+
+        The result will be a tuple of scroll distance that can be added to
+        :data:`scroll_x` and :data:`scroll_y`
+        '''
+        if not self._viewport:
+            return 0, 0
+        vp = self._viewport
+        if vp.width > self.width:
+            sw = vp.width - self.width
+            sx = dx / float(sw)
+        else:
+            sx = 0
+        if vp.height > self.height:
+            sh = vp.height - self.height
+            sy = dy / float(sh)
+        else:
+            sy = 1
+        return sx, sy
+
 
     def update_from_scroll(self, *largs):
         '''Force the reposition of the content, according to current value of
@@ -760,7 +831,7 @@ class ScrollView(StencilView):
     def _get_uid(self, prefix='sv'):
         return '{0}.{1}'.format(prefix, self.uid)
 
-    def _change_touch_mode(self, is_local=True, *largs):
+    def _change_touch_mode(self, *largs):
         if not self._touch:
             return
         uid = self._get_uid()
@@ -775,8 +846,7 @@ class ScrollView(StencilView):
         # touch mode. Otherwise, we might never be able to compute velocity, and
         # no way to scroll it. See #1464 and #1499
         if diff_frames < 3:
-            Clock.schedule_once(
-                    partial(self._change_touch_mode, is_local), 0)
+            Clock.schedule_once(self._change_touch_mode, 0)
             return
 
         if self.do_scroll_x and self.effect_x:
@@ -791,18 +861,20 @@ class ScrollView(StencilView):
         # and touch.dx + touch.dy == 0:
         touch.ungrab(self)
         self._touch = None
-        # correctly calculate the position of the touch inside the
-        # scrollview
+        # touch is in window coords
         touch.push()
-        if not is_local:
-            touch.apply_transform_2d(self.to_widget)
+        touch.apply_transform_2d(self.to_widget)
         touch.apply_transform_2d(self.to_parent)
         self.simulate_touch_down(touch)
         touch.pop()
         return
 
     def _do_touch_up(self, touch, *largs):
+        # touch is in window coords
+        touch.push()
+        touch.apply_transform_2d(self.to_widget)
         super(ScrollView, self).on_touch_up(touch)
+        touch.pop()
         # don't forget about grab event!
         for x in touch.grab_list[:]:
             touch.grab_list.remove(x)
@@ -810,7 +882,11 @@ class ScrollView(StencilView):
             if not x:
                 continue
             touch.grab_current = x
+            # touch is in window coords
+            touch.push()
+            touch.apply_transform_2d(self.to_widget)
             super(ScrollView, self).on_touch_up(touch)
+            touch.pop()
         touch.grab_current = None
 
 

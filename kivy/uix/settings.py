@@ -116,7 +116,7 @@ Several pre-built settings widgets are available. All except
 on_close event.
 
 - :class:`Settings`: Displays settings with a sidebar at the left to
-  switch between json panels. This is the default behaviour.
+  switch between json panels.
 
 - :class:`SettingsWithSidebar`: A trivial subclass of
   :class:`Settings`.
@@ -124,7 +124,8 @@ on_close event.
 - :class:`SettingsWithSpinner`: Displays settings with a spinner at
   the top, which can be used to switch between json panels. Uses
   :class:`InterfaceWithSpinner` as the
-  :attr:`~Settings.interface_cls`.
+  :attr:`~Settings.interface_cls`. This is the default behavior from
+  Kivy 1.8.0.
 
 - :class:`SettingsWithTabbedPanel`: Displays json panels as individual
   tabs in a :class:`~kivy.uix.tabbedpanel.TabbedPanel`. Uses
@@ -874,7 +875,6 @@ class Settings(BoxLayout):
     :class`InterfaceWithSidebar`.
 
     .. versionchanged:: 1.8.0
-
         If you set a string, the :class:`~kivy.factory.Factory` will be used to
         resolve the class.
 
@@ -1083,8 +1083,12 @@ class InterfaceWithTabbedPanel(FloatLayout):
     def add_panel(self, panel, name, uid):
         scrollview = ScrollView()
         scrollview.add_widget(panel)
-        panelitem = TabbedPanelHeader(text=name, content=scrollview)
-        self.tabbedpanel.add_widget(panelitem)
+        if not self.tabbedpanel.default_tab_content:
+            self.tabbedpanel.default_tab_text = name
+            self.tabbedpanel.default_tab_content = scrollview
+        else:
+            panelitem = TabbedPanelHeader(text=name, content=scrollview)
+            self.tabbedpanel.add_widget(panelitem)
 
     def on_close(self, *args):
         pass

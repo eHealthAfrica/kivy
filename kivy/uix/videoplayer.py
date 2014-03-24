@@ -55,6 +55,26 @@ You can allow stretching by passing custom options to a
     player = VideoPlayer(source='myvideo.avi', state='play',
         options={'allow_stretch': True})
 
+End-of-stream behavior
+----------------------
+
+You can specify what happens when the video has finished playing by passing an
+`eos` (end of stream) directive to the underlying
+:class:`~kivy.core.video.VideoBase` class. `eos` can be one of 'stop', 'pause'
+or 'loop' and defaults to 'stop'. For example, in order to loop the video::
+
+    player = VideoPlayer(source='myvideo.avi', state='play',
+        options={'eos': 'loop'})
+
+.. note::
+
+    The `eos` property of the VideoBase class is a string specifying the
+    end-of-stream behavior. This property differs from the `eos`
+    properties of the :class:`VideoPlayer` and
+    :class:`~kivy.uix.video.Video` classes, whose `eos`
+    property is simply a boolean indicating that the end of the file has
+    been reached.
+
 '''
 
 __all__ = ('VideoPlayer', 'VideoPlayerAnnotation')
@@ -72,6 +92,7 @@ from kivy.uix.video import Video
 from kivy.uix.video import Image
 from kivy.factory import Factory
 from kivy.logger import Logger
+from kivy.clock import Clock
 
 
 class VideoPlayerVolume(Image):
@@ -309,10 +330,10 @@ class VideoPlayer(GridLayout):
     '''String, indicates whether to play, pause, or stop the video::
 
         # start playing the video at creation
-        video = Video(source='movie.mkv', state='play')
+        video = VideoPlayer(source='movie.mkv', state='play')
 
         # create the video, and start later
-        video = Video(source='movie.mkv')
+        video = VideoPlayer(source='movie.mkv')
         # and later
         video.state = 'play'
 
@@ -329,10 +350,10 @@ class VideoPlayer(GridLayout):
     the video by setting this property::
 
         # start playing the video at creation
-        video = Video(source='movie.mkv', play=True)
+        video = VideoPlayer(source='movie.mkv', play=True)
 
         # create the video, and start later
-        video = Video(source='movie.mkv')
+        video = VideoPlayer(source='movie.mkv')
         # and later
         video.play = True
 
@@ -465,6 +486,13 @@ class VideoPlayer(GridLayout):
         self._load_thumbnail()
         self._load_annotations()
 
+        if self.source:
+            self._trigger_video_load()
+
+    def _trigger_video_load(self, *largs):
+        Clock.unschedule(self._do_video_load)
+        Clock.schedule_once(self._do_video_load, -1)
+
     def on_source(self, instance, value):
         # we got a value, try to see if we have an image for it
         self._load_thumbnail()
@@ -472,6 +500,8 @@ class VideoPlayer(GridLayout):
         if self._video is not None:
             self._video.unload()
             self._video = None
+        if value:
+            self._trigger_video_load()
 
     def _load_thumbnail(self):
         if not self.container:
@@ -502,15 +532,21 @@ class VideoPlayer(GridLayout):
                     VideoPlayerAnnotation(annotation=ann))
 
     def on_state(self, instance, value):
-        if self._video is None:
-            self._video = Video(source=self.source, state='play',
-                                volume=self.volume, pos_hint={'x': 0, 'y': 0},
-                                **self.options)
-            self._video.bind(texture=self._play_started,
-                             duration=self.setter('duration'),
-                             position=self.setter('position'),
-                             volume=self.setter('volume'))
-        self._video.state = value
+        if self._video is not None:
+            self._video.state = value
+
+    def _set_state(self, instance, value):
+        self.state = value
+
+    def _do_video_load(self, *largs):
+        self._video = Video(source=self.source, state=self.state,
+                            volume=self.volume, pos_hint={'x': 0, 'y': 0},
+                            **self.options)
+        self._video.bind(texture=self._play_started,
+                         duration=self.setter('duration'),
+                         position=self.setter('position'),
+                         volume=self.setter('volume'),
+                         state=self._set_state)
 
     def on_play(self, instance, value):
         value = 'play' if value else 'stop'

@@ -14,9 +14,13 @@ properties.
 That specific behavior makes the scatter unique, but there are some
 advantages / constraints that you should consider:
 
-#. The children are positionned relative to 0, 0. The scatter position has
-   no impact of the position of children. This applies to the size too.
-#. If you want to resize the scatter, use scale, not size. (read #1.)
+#. The children are positioned relative to the scatter similar to a
+   RelativeLayout (see :mod:`~kivy.uix.relativelayout`). So when dragging the
+   scatter, the position of the children don't change, only the position of
+   the scatter.
+#. The scatter size has no impact on the size of the children.
+#. If you want to resize the scatter, use scale, not size. (read #2.). Scale
+   transforms both the scatter and its children, but does not change size.
 #. The scatter is not a layout. You must manage the size of the children
    yourself.
 
@@ -415,24 +419,29 @@ class Scatter(Widget):
         if len(self._touches) == 1:
             return changed
 
-        # we have more than one touch...
-        points = [Vector(self._last_touch_pos[t]) for t in self._touches]
+        # we have more than one touch... list of last known pos
+        points = [Vector(self._last_touch_pos[t]) for t in self._touches
+                  if t is not touch]
+        # add current touch last
+        points.append(Vector(touch.pos))
 
         # we only want to transform if the touch is part of the two touches
-        # furthest apart! So first we find anchor, the point to transform
-        # around as the touch farthest away from touch
-        anchor = max(points, key=lambda p: p.distance(touch.pos))
+        # farthest apart! So first we find anchor, the point to transform
+        # around as another touch farthest away from current touch's pos
+        anchor = max(points[:-1], key=lambda p: p.distance(touch.pos))
 
         # now we find the touch farthest away from anchor, if its not the
         # same as touch. Touch is not one of the two touches used to transform
         farthest = max(points, key=anchor.distance)
-        if points.index(farthest) != self._touches.index(touch):
+        if farthest is not points[-1]:
             return changed
 
         # ok, so we have touch, and anchor, so we can actually compute the
         # transformation
         old_line = Vector(*touch.ppos) - anchor
         new_line = Vector(*touch.pos) - anchor
+        if not old_line.length():   # div by zero
+            return changed
 
         angle = radians(new_line.angle(old_line)) * self.do_rotation
         self.apply_transform(Matrix().rotate(angle, 0, 0, 1), anchor=anchor)
